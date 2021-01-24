@@ -16,11 +16,10 @@ impl RowSet for VecDequeRowSet {
     }
 
     fn put_row(&mut self, rows: Vec<RowData>) {
-        o
-        self.rows.
+        unimplemented!()
     }
 
-    fn get_rows() -> Option<&_> {
+    fn get_row(&self) -> Option<Vec<RowData>> {
         unimplemented!()
     }
 }
