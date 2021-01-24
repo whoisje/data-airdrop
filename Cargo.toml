@@ -1,0 +1,12 @@
+[package]
+name = "data-airdrop"
+version = "0.1.0"
+authors = ["je"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "*"
+lombok = "*"
+serde_json = "1.0"
