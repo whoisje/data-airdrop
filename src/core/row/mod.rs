@@ -1,4 +1,5 @@
-mod row_set;
-mod row_column;
-mod row_data;
-mod deque_row_set;
+pub mod row_set;
+pub mod row_column;
+pub mod row_data;
+pub mod row_set_impl;
+pub mod row_handler;

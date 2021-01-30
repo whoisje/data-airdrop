@@ -1,9 +1,11 @@
-use std::any::{Any, TypeId};
+use serde_json::Value;
+use serde::{Deserialize, Serialize};
 
 ///
 ///row data 元信息，用来说明row data中包含那些字段，类似于表头
 ///
-#[derive(Getter, Setter)]
+///
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RowColumnMeta {
     name: String,
     type_of: String,
@@ -16,6 +18,12 @@ pub struct RowColumnMeta {
 impl RowColumnMeta {
     pub fn new(name: String, type_of: String, len: u32, scale: u32, primary: bool) -> Self {
         RowColumnMeta { name, type_of, len, scale, primary }
+    }
+}
+
+impl Default for RowColumnMeta {
+    fn default() -> Self {
+        RowColumnMeta { name: String::new(), type_of: String::from("String"), len: 0, scale: 0, primary: false }
     }
 }
 
@@ -55,24 +63,25 @@ impl RowColumnMeta {
     }
 }
 
-
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RowColumn {
     column_meta: RowColumnMeta,
-    value: Box<dyn Any>,
-
+    value: Value,
 }
 
 impl RowColumn {
     pub fn column_meta(&self) -> &RowColumnMeta {
         &self.column_meta
     }
-    pub fn value(&self) -> &Box<dyn Any> {
+    pub fn value(&self) -> &Value {
         &self.value
     }
 }
 
 impl RowColumn {
-    pub fn new(column_meta: RowColumnMeta, value: Box<dyn Any>) -> Self {
+    pub fn new(column_meta: RowColumnMeta, value: Value) -> Self {
         RowColumn { column_meta, value }
     }
 }
+
+
