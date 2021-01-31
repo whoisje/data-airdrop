@@ -1,9 +1,10 @@
-use crate::core::step::step_state::StepState;
-use crate::core::step::step_prop::StepProp;
-use crate::core::row::row_set::RowSet;
-use crate::core::event::step_event_listener::StepEventListener;
 use std::rc::Rc;
+
+use crate::core::event::step_event_listener::StepEventListener;
 use crate::core::row::row_handler::RowHandler;
+use crate::core::row::row_set::RowSet;
+use crate::core::step::step_prop::StepProp;
+use crate::core::step::step_state::StepState;
 
 pub trait Step {
     fn configure(&mut self,
@@ -13,7 +14,9 @@ pub trait Step {
 
     fn process_row(&mut self)
                    -> anyhow::Result<()>;
-    fn step_event_listener(&mut self) -> StepEventListener {
+    fn get_listener(&mut self) -> StepEventListener {
         StepEventListener::default()
     }
+    fn get_name(&self) -> String;
+    fn get_id(&self) -> String;
 }

@@ -1,37 +1,42 @@
-use crate::core::step::step::Step;
-use crate::core::step::step_state::StepState;
-use crate::core::row::row_set::RowSet;
-use crate::core::event::step_event_listener::StepEventListener;
-use crate::core::step::step_prop::StepProp;
-use std::ops::Deref;
-use serde::{Deserialize, Serialize};
-use crate::core::row::row_column::{RowColumnMeta, RowColumn};
-use serde_json::Value;
-use crate::core::row::row_set_impl::deque_row_set::VecDequeRowSet;
-use std::collections::VecDeque;
-use tokio::stream::StreamExt;
-use crate::core::row::row_data::{RowData, RowDataOption};
 use std::borrow::Borrow;
-use std::rc::Rc;
-use crate::core::row::row_handler::{RowHandler, DequeRowSetHandler};
 use std::cell::RefCell;
+use std::collections::{HashMap, VecDeque};
+use std::ops::Deref;
+use std::rc::Rc;
 
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use tokio::stream::StreamExt;
+
+use crate::core::event::step_event_listener::StepEventListener;
+use crate::core::row::row_column::{RowColumn, RowColumnMeta};
+use crate::core::row::row_data::{RowData, RowDataOption};
+use crate::core::row::row_handler::{DequeRowSetHandler, RowHandler};
+use crate::core::row::row_set::RowSet;
+use crate::core::row::row_set_impl::deque_row_set::VecDequeRowSet;
+use crate::core::step::step::Step;
+use crate::core::step::step_prop::StepProp;
+use crate::core::step::step_state::StepState;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateRowStepProp {
+    name: String,
+    id: String,
     count: u32,
     columns: Vec<GenerateRow>,
 }
 
 impl GenerateRowStepProp {
-    pub fn new(count: u32, columns: Vec<GenerateRow>) -> Self {
-        GenerateRowStepProp { count, columns }
+    pub fn new(name: String, id: String, count: u32, columns: Vec<GenerateRow>) -> Self {
+        GenerateRowStepProp { name, id, count, columns }
     }
 }
 
 impl Default for GenerateRowStepProp {
     fn default() -> Self {
         GenerateRowStepProp {
+            name: String::new(),
+            id: String::new(),
             count: 0,
             columns: vec![],
         }
@@ -112,8 +117,23 @@ impl Step for GenerateRowStep {
         Ok(())
     }
 
-    fn step_event_listener(&mut self) -> StepEventListener {
-        StepEventListener::default()
+    fn get_listener(&mut self) -> StepEventListener {
+        let mut listener = StepEventListener::default();
+        let name = self.step_prop.name.clone();
+        listener.set_on_start(Box::new(
+            move |()| {
+                println!("step {} start", name)
+            }
+        ));
+        listener
+    }
+
+    fn get_name(&self) -> String {
+        self.step_prop.name.to_string()
+    }
+
+    fn get_id(&self) -> String {
+        self.step_prop.id.to_string()
     }
 }
 
@@ -122,6 +142,8 @@ fn gen_row_step() -> anyhow::Result<()> {
     let mut steps = Vec::<Box<dyn Step>>::new();
     steps.push(Box::new(GenerateRowStep::default()));
     let prop = GenerateRowStepProp {
+        name: "生成记录".to_string(),
+        id: "124231423423".to_string(),
         count: 0,
         columns: vec![GenerateRow {
             column: RowColumnMeta::new("hello".to_string(),
@@ -130,11 +152,12 @@ fn gen_row_step() -> anyhow::Result<()> {
             value: Value::String("hello".to_string()),
         }],
     };
-    let row_set = Rc::new(RefCell::new(VecDequeRowSet::default()));
-    for step in &mut steps {
-        let row_handler = Box::new(DequeRowSetHandler::new(Rc::clone(&row_set)));
-        step.configure(serde_json::to_string(&prop)?, row_handler);
-        step.process_row();
-    }
+
+    let output_row_set = VecDequeRowSet::default();
+    let mut output_row_sets = HashMap::<String, &VecDequeRowSet>::new();
+    output_row_sets.insert("124231423423".to_string(), &output_row_set);
+    let row_handler = Box::new(DequeRowSetHandler::new(None, output_row_sets));
+    steps[0].configure(serde_json::to_string(&prop)?, row_handler);
+    steps[0].process_row();
     Ok(())
 }

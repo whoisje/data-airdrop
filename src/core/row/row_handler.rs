@@ -1,50 +1,87 @@
-use crate::core::row::row_data::RowData;
-use crate::core::row::row_set_impl::deque_row_set::VecDequeRowSet;
-use crate::core::row::row_set::RowSet;
-use std::rc::Rc;
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+
+use crate::core::row::row_data::RowData;
+use crate::core::row::row_set::RowSet;
+use crate::core::row::row_set_impl::deque_row_set::VecDequeRowSet;
 
 pub trait RowHandler {
     fn put_row(&mut self, row: Vec<RowData>);
+    ///
+    /// put到多个目标步骤中的一个，用于条件判断组件
+    /// ```
+    /// row_handler.put_row_to_target("step_id".to_string(),row)
+    /// ```
+    ///
+    fn put_row_to_target(&mut self, target: String, row: Vec<RowData>);
     fn get_row(&mut self) -> Vec<RowData>;
 }
 
 ///
 /// 单线程handler，step间顺序执行
+/// 输入在一个row_set，输出多个row_set。
+/// step_id -> row_set
 ///
-pub struct DequeRowSetHandler {
-    row_set: Rc<RefCell<VecDequeRowSet>>
+pub struct DequeRowSetHandler<'a> {
+    input_row_set: Option<&'a VecDequeRowSet>,
+    output_row_sets: HashMap<String, &'a VecDequeRowSet>,
 }
 
-impl DequeRowSetHandler {
-    pub fn new(row_set: Rc<RefCell<VecDequeRowSet>>) -> Self {
-        DequeRowSetHandler { row_set }
+impl<'a> DequeRowSetHandler<'a> {
+    pub fn new(input_row_set: Option<&'a VecDequeRowSet>, output_row_sets: HashMap<String, &'a VecDequeRowSet>) -> Self {
+        DequeRowSetHandler { input_row_set, output_row_sets }
     }
 }
 
-impl Default for DequeRowSetHandler {
+impl<'a> Default for DequeRowSetHandler<'a> {
     fn default() -> Self {
         DequeRowSetHandler {
-            row_set: Rc::new(RefCell::new(VecDequeRowSet::default()))
+            input_row_set: None,
+            output_row_sets: HashMap::new(),
         }
     }
 }
 
-impl RowHandler for DequeRowSetHandler {
+impl<'a> RowHandler for DequeRowSetHandler<'a> {
     fn put_row(&mut self, row: Vec<RowData>) {
         if row.is_empty() { return; }
-        let rc = &*self.row_set;
-        let mut deque_row_set = &mut *rc.borrow_mut();
-        deque_row_set.put_row(row)
+        let mut row_sets = &mut self.output_row_sets;
+        if row_sets.is_empty() {
+            return;
+        } else {
+            let is_single = true;
+            for (_, row_set) in row_sets {
+                if is_single {
+                    row_set.put_row(row);
+                    break;
+                } else {
+                    row_set.put_row(row.clone());
+                }
+            }
+        }
+    }
+
+    fn put_row_to_target(&mut self, target: String, row: Vec<RowData>) {
+        if row.is_empty() { return; }
+        let mut row_sets = &self.output_row_sets;
+        if row_sets.is_empty() {
+            return;
+        } else {
+            if let Some(row_set) = row_sets.get(&target).as_mut() {
+                row_set.put_row(row);
+            }
+        }
     }
 
     fn get_row(&mut self) -> Vec<RowData> {
-        let rc = &*self.row_set;
-        let deque_row_set = &mut *rc.borrow_mut();
-        return match deque_row_set.get_row() {
-            Some(row) => row,
-            None => vec![]
-        };
+        let row_set = self.input_row_set.as_mut();
+        if let Some(input) = row_set {
+            if let Some(row) = input.get_row() {
+                return row;
+            }
+        }
+        vec![]
     }
 }
